@@ -687,35 +687,44 @@ def change_host(options, **kwargs):
                 del options[k]
                 changed = True
         elif options.get(k) != v:
-            options[k] = v
+            options[k] = 'yes' if v == 'True' else v
             changed = True
 
     return changed, options
 
 
 def main():
-    module = AnsibleModule(
-        argument_spec=dict(
-            state=dict(default='present', choices=['present', 'absent']),
-            host=dict(required=True, type='str'),
-            hostname=dict(type='str'),
-            port=dict(type='str'),
-            remote_user=dict(type='str'),
-            identity_file=dict(type='str'),
-            user=dict(default=None, type='str'),
-            user_known_hosts_file=dict(default=None, type='str'),
-            proxycommand=dict(default=None, type='str'),
-            strict_host_key_checking=dict(
-                default=None,
-                choices=['yes', 'no', 'ask']
-            ),
+    argument_spec = {}
+    for key in SSH_KEYWORDS:
+        argument_spec[key.lower()] = dict(required=False, type='str')
+    argument_spec.update(dict(
+        state=dict(default='present', choices=['present', 'absent']),
+        host=dict(required=True, type='str'),
+        hostname=dict(type='str'),
+        port=dict(type='str'),
+        remote_user=dict(type='str'),
+        identity_file=dict(type='str'),
+        user=dict(default=None, type='str'),
+        user_known_hosts_file=dict(default=None, type='str'),
+        proxycommand=dict(default=None, type='str'),
+        strict_host_key_checking=dict(
+         default=None,
+         choices=['yes', 'no', 'ask']
         ),
+    ))
+    module = AnsibleModule(
+        argument_spec=argument_spec,
         supports_check_mode=True
     )
 
     user = module.params.get('user')
     host = module.params.get('host')
-    args = dict(
+    args = {}
+    for key in SSH_KEYWORDS:
+        key_lower = key.lower()
+        if key_lower in module.params:
+            args[key_lower] = module.params.get(key_lower)
+    args.update(dict(
         hostname=module.params.get('hostname'),
         port=module.params.get('port'),
         identity_file=module.params.get('identity_file'),
@@ -723,7 +732,7 @@ def main():
         strict_host_key_checking=module.params.get('strict_host_key_checking'),
         user_known_hosts_file=module.params.get('user_known_hosts_file'),
         proxycommand=module.params.get('proxycommand'),
-    )
+    ))
     state = module.params.get('state')
     config_changed = False
     hosts_changed = []
